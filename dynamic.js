@@ -7,37 +7,117 @@ const yaml = require('js-yaml')
 module.exports = function (fastify, opts, next) {
   fastify.decorate('swagger', swagger)
 
-  const routes = []
+  let routes = []
+
+  const cache = {
+    swaggerObject: null,
+    swaggerString: null
+  }
 
   fastify.addHook('onRoute', (routeOptions) => {
     routes.push(routeOptions)
+    cache.swaggerObject = null
+    cache.swaggerString = null
+  })
+
+  fastify.addHook('offRoute', (routeOptions) => {
+    // console.log('offRoute current', routes,)
+    // console.log('NEED DELETE ROUTE', routeOptions,)
+
+    if (Array.isArray(routeOptions)) {
+      if (routeOptions && routeOptions.method && routeOptions.url) {
+        if (Array.isArray(routeOptions.method)) {
+          routes = routes.reduce((acc, route) => {
+
+            if (routeOptions.url === route.url) {
+              // console.log('String URL', route, routeOptions.method)
+
+              if (Array.isArray(route.method)) {
+                routeOptions.method.forEach((method) => {
+                  const i = route.method.indexOf(method)
+                  if (i > -1) {
+                    delete route.method[i]
+                  }
+                })
+                if (route.method.length === 0) {
+                  return acc
+                } else {
+                  acc.push(route)
+                }
+              } else {
+                if (routeOptions.method.includes(route.method)) {
+                  // console.log('REMOVE ROUTE', route)
+                  return acc
+                }
+              }
+            }
+            acc.push(route)
+            return acc
+          }, [])
+        } else {
+          routes = routes.reduce((acc, route) => {
+            if (routeOptions.url === route.url) {
+
+              if (Array.isArray(route.method)) {
+                const i = route.method.indexOf(routeOptions.method)
+                if (i > -1) {
+                  delete route.method[i]
+                }
+                if (route.method.length === 0) {
+                  return acc
+                } else {
+                  acc.push(route)
+                }
+              } else {
+                return acc
+              }
+            }
+            acc.push(route)
+            return acc
+          }, [])
+        }
+      }
+    } else {
+      routes = []
+    }
+
+    cache.swaggerObject = null
+    cache.swaggerString = null
   })
 
   opts = opts || {}
 
   opts.swagger = opts.swagger || {}
 
-  const info = opts.swagger.info || null
-  const host = opts.swagger.host || null
-  const schemes = opts.swagger.schemes || null
-  const consumes = opts.swagger.consumes || null
-  const produces = opts.swagger.produces || null
-  const definitions = opts.swagger.definitions || null
-  const basePath = opts.swagger.basePath || null
-  const securityDefinitions = opts.swagger.securityDefinitions || null
-  const security = opts.swagger.security || null
-  const tags = opts.swagger.tags || null
-  const externalDocs = opts.swagger.externalDocs || null
-  const transform = opts.transform || null
+  // const info = opts.swagger.info || null
+  // const host = opts.swagger.host || null
+  // const schemes = opts.swagger.schemes || null
+  // const consumes = opts.swagger.consumes || null
+  // const produces = opts.swagger.produces || null
+  // const definitions = opts.swagger.definitions || null
+  // const basePath = opts.swagger.basePath || null
+  // const securityDefinitions = opts.swagger.securityDefinitions || null
+  // const security = opts.swagger.security || null
+  // const tags = opts.swagger.tags || null
+  // const externalDocs = opts.swagger.externalDocs || null
+  // const transform = opts.transform || null
+
+  let info = opts.swagger.info || null
+  let host = opts.swagger.host || null
+  let schemes = opts.swagger.schemes || null
+  let consumes = opts.swagger.consumes || null
+  let produces = opts.swagger.produces || null
+  let definitions = opts.swagger.definitions || null
+  let basePath = opts.swagger.basePath || null
+  let securityDefinitions = opts.swagger.securityDefinitions || null
+  let security = opts.swagger.security || null
+  let tags = opts.swagger.tags || null
+  let externalDocs = opts.swagger.externalDocs || null
+  let transform = opts.transform || null
 
   if (opts.exposeRoute === true) {
     const prefix = opts.routePrefix || '/documentation'
-    fastify.register(require('./routes'), { prefix })
-  }
-
-  const cache = {
-    swaggerObject: null,
-    swaggerString: null
+    fastify.register(require('./routes'), {prefix})
   }
 
   function swagger (opts) {
@@ -46,6 +126,22 @@ module.exports = function (fastify, opts, next) {
     } else {
       if (cache.swaggerObject) return cache.swaggerObject
     }
+
+    opts = opts || {}
+    opts.swagger = opts.swagger || {}
+
+    info = opts.swagger.info || info
+    host = opts.swagger.host || host
+    schemes = opts.swagger.schemes || schemes
+    consumes = opts.swagger.consumes || consumes
+    produces = opts.swagger.produces || produces
+    definitions = opts.swagger.definitions || definitions
+    basePath = opts.swagger.basePath || basePath
+    securityDefinitions = opts.swagger.securityDefinitions || securityDefinitions
+    security = opts.swagger.security || security
+    tags = opts.swagger.tags || tags
+    externalDocs = opts.swagger.externalDocs || externalDocs
+    transform = opts.transform || transform
 
     const swaggerObject = {}
     var pkg

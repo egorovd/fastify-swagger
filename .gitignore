@@ -49,3 +49,5 @@ static
 
 # vscode files
 .vscode/
+/fastify-swagger.iml
+/.idea/
